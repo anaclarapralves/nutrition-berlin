@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>Nutrição · Ana Clara · Berlim 2025</title>
+  <meta name="theme-color" content="#0F1A0F"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:#F5F2EC;font-family:'DM Mono',monospace;-webkit-tap-highlight-color:transparent;}
+    :root{
+      --bg:#F5F2EC;--bg2:#EDEAE2;--card:#FFFFFF;
+      --ink:#1A1F1A;--ink2:#5A5F5A;--ink3:#9A9F9A;
+      --green:#2D5A3D;--green2:#4A8C5C;--green3:#C8E6C9;
+      --amber:#8B5E00;--amber2:#D4A017;--amber3:#FFF3C4;
+      --red:#8B1A00;--red2:#D4421A;--red3:#FFE8E0;
+      --border:#E0DDD6;
+    }
+    ::-webkit-scrollbar{width:3px;height:3px;}
+    ::-webkit-scrollbar-track{background:var(--bg2);}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+    .fadeup{animation:fadeUp 0.35s ease;}
+    .loading-dot{animation:pulse 1.2s ease infinite;}
+    details>summary{list-style:none;}
+    details>summary::-webkit-details-marker{display:none;}
+    input,textarea,select{font-family:'DM Mono',monospace;color:var(--ink);}
+    .serif{font-family:'DM Serif Display',serif;}
+    .mono{font-family:'DM Mono',monospace;}
+    .label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--ink3);}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;}
+    .chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:10px;letter-spacing:0.5px;font-family:'DM Mono',monospace;}
+    .btn{border:none;border-radius:7px;padding:11px 20px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:all 0.18s;}
+    .btn-primary{background:var(--green);color:white;}
+    .btn-primary:hover{background:var(--green2);}
+    .btn-primary:disabled{background:var(--border);color:var(--ink3);cursor:not-allowed;}
+    .btn-outline{background:transparent;color:var(--ink2);border:1px solid var(--border);}
+    .btn-outline:hover{border-color:var(--green);color:var(--green);}
+    .input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:7px;font-size:12px;outline:none;background:white;transition:border-color 0.15s;}
+    .input:focus{border-color:var(--green2);}
+    .tag-btn{padding:6px 13px;border-radius:20px;border:1px solid var(--border);background:white;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;transition:all 0.15s;color:var(--ink2);}
+    .tag-btn.active{background:var(--green);border-color:var(--green);color:white;}
+    @media(max-width:600px){.hide-mobile{display:none!important;}}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── STORAGE ─────────────────────────────────────────────────────────────────
+const LS = {
+  get:(k,fb)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}},
+  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+};
+
+// ─── PERFIL BASE ──────────────────────────────────────────────────────────────
+const PERFIL_BASE = {
+  nome:"Ana Clara", idade:36, peso:59.1, altura:170,
+  gordura:17.5, musculo:26.4, agua:34.7,
+  meta:"Sub-4h Maratona de Berlim (27/set/2025)",
+  paceAlvo:"5:41/km", volumeSemana:"~40 km/semana",
+  historico:"Tendinopatia glútea e iliopsoas direito",
+  suplementos:"Ômega-3, Magnésio Quelato, CoQ10, Complexo B, Whey Protein, Probiótico (Simfort)",
+};
+
+// ─── QUESTION FLOW ────────────────────────────────────────────────────────────
+const QUESTIONS = [
+  {
+    id:"horario_treino", section:"Rotina de Treino",
+    q:"Em que horário você costuma treinar?",
+    type:"multi",
+    options:["Manhã cedo (5h–7h)","Manhã (7h–9h)","Meio-dia (11h–13h)","Tarde (14h–17h)","Noite (18h–21h)"]
+  },
+  {
+    id:"tipos_treino", section:"Rotina de Treino",
+    q:"Quais tipos de treino você faz na semana?",
+    type:"multi",
+    options:["Corrida leve / Z2","Corrida de ritmo","Treino de tiro / intervalado","Long run (>18 km)","Musculação","Mobilidade / alongamento"]
+  },
+  {
+    id:"pretreino_atual", section:"Nutrição Atual",
+    q:"O que você costuma usar como pré-treino?",
+    type:"multi",
+    options:["Maismu","Dux","Outro suplemento em pó","Café puro","Banana + carboidrato natural","Nada (treino em jejum)","Varia conforme o dia"]
+  },
+  {
+    id:"intratreino_atual", section:"Nutrição Atual",
+    q:"O que você usa durante treinos longos?",
+    type:"multi",
+    options:["Gel de carboidrato","Isotônico","Água apenas","Banana / tâmara","Nada ainda","Varia"]
+  },
+  {
+    id:"gel_experiencia", section:"Nutrição Atual",
+    q:"Com géis de carboidrato, qual sua experiência?",
+    type:"single",
+    options:["Uso regularmente e tolero bem","Uso mas sinto desconforto às vezes","Testei pouco, ainda explorando","Nunca usei, quero começar"]
+  },
+  {
+    id:"refeicoes_dia", section:"Hábitos Alimentares",
+    q:"Quantas refeições você faz por dia?",
+    type:"single",
+    options:["2–3 refeições","4–5 refeições","6+ refeições","Varia muito"]
+  },
+  {
+    id:"proteina_fontes", section:"Hábitos Alimentares",
+    q:"Quais são suas principais fontes de proteína?",
+    type:"multi",
+    options:["Frango","Peixe / salmão","Ovo","Carne vermelha","Whey / proteína em pó","Leguminosas (feijão, lentilha)","Laticínios (iogurte, queijo)","Tofu / proteína vegetal"]
+  },
+  {
+    id:"carb_fontes", section:"Hábitos Alimentares",
+    q:"Quais carboidratos você come com mais frequência?",
+    type:"multi",
+    options:["Arroz","Batata-doce","Pão integral","Aveia","Macarrão","Frutas","Tapioca","Mandioca / batata"]
+  },
+  {
+    id:"restricoes", section:"Hábitos Alimentares",
+    q:"Você tem alguma restrição ou preferência alimentar?",
+    type:"multi",
+    options:["Nenhuma","Intolerância à lactose","Intolerância ao glúten","Não como carne vermelha","Vegetariana","Vegana","Alergia a frutos do mar","Evito ultraprocessados"]
+  },
+  {
+    id:"dificuldades", section:"Desafios",
+    q:"Qual seu maior desafio alimentar no dia a dia?",
+    type:"multi",
+    options:["Comer suficiente proteína","Timing das refeições ao redor do treino","Manter energia durante o dia","Desconforto gastrointestinal no treino","Controlar o peso sem perder performance","Hidratação","Planejamento / praticidade"]
+  },
+  {
+    id:"sono_recuperacao", section:"Desafios",
+    q:"Como está seu sono e recuperação?",
+    type:"single",
+    options:["Durmo bem, me recupero rápido","Durmo bem mas demoro a recuperar","Sono irregular, impacta o treino","Tenho dificuldade para dormir"]
+  },
+];
+
+// ─── API HELPER ───────────────────────────────────────────────────────────────
+async function askClaude(apiKey, messages, maxTokens=1500) {
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01"},
+    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:maxTokens,messages})
+  });
+  const d = await r.json();
+  if(d.error) throw new Error(d.error.message);
+  return d.content?.find(b=>b.type==="text")?.text||"";
+}
+
+// ─── COMPONENTS ───────────────────────────────────────────────────────────────
+function ApiKeyModal({onSave}){
+  const [key, setKey] = useState("");
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999,padding:16}}>
+      <div className="card fadeup" style={{padding:28,maxWidth:420,width:"100%"}}>
+        <div className="serif" style={{fontSize:22,marginBottom:6}}>Configurar API</div>
+        <p style={{fontSize:12,color:"var(--ink2)",lineHeight:1.7,marginBottom:20}}>
+          Este app usa IA para gerar seu plano nutricional personalizado.<br/>
+          Obtenha sua chave em <a href="https://console.anthropic.com" target="_blank" style={{color:"var(--green2)"}}>console.anthropic.com</a> → API Keys.<br/>
+          Fica salva só no seu navegador.
+        </p>
+        <div className="label" style={{marginBottom:5}}>Chave da API (sk-ant-...)</div>
+        <input type="password" className="input" value={key} onChange={e=>setKey(e.target.value)} placeholder="sk-ant-api03-..." style={{marginBottom:16}}/>
+        <button className="btn btn-primary" style={{width:"100%"}} disabled={!key.startsWith("sk-")} onClick={()=>onSave(key)}>
+          Salvar e continuar →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function QuestionCard({q, answers, onAnswer}){
+  const current = answers[q.id] || [];
+  const toggle = (opt) => {
+    if(q.type==="single"){
+      onAnswer(q.id, [opt]);
+    } else {
+      const has = current.includes(opt);
+      onAnswer(q.id, has ? current.filter(x=>x!==opt) : [...current, opt]);
+    }
+  };
+  return(
+    <div className="fadeup">
+      <div className="label" style={{marginBottom:8,color:"var(--green)"}}>{q.section}</div>
+      <div className="serif" style={{fontSize:20,marginBottom:18,lineHeight:1.3,color:"var(--ink)"}}>{q.q}</div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+        {q.options.map(opt=>(
+          <button key={opt} className={`tag-btn ${current.includes(opt)?"active":""}`} onClick={()=>toggle(opt)}>{opt}</button>
+        ))}
+      </div>
+      {q.type==="multi"&&<div style={{fontSize:10,color:"var(--ink3)",marginTop:10}}>Selecione quantas quiser</div>}
+    </div>
+  );
+}
+
+function LoadingPlan(){
+  const steps = ["Lendo seu perfil corporal...","Analisando seus hábitos...","Calculando macros personalizados...","Montando pré e pós-treino por horário...","Selecionando géis e composições ideais...","Finalizando seu plano completo..."];
+  const [step, setStep] = useState(0);
+  useEffect(()=>{
+    const id = setInterval(()=>setStep(s=>s<steps.length-1?s+1:s),2200);
+    return()=>clearInterval(id);
+  },[]);
+  return(
+    <div style={{textAlign:"center",padding:"60px 20px"}}>
+      <div style={{fontSize:40,marginBottom:20,animation:"spin 2s linear infinite",display:"inline-block"}}>🌿</div>
+      <div className="serif" style={{fontSize:22,marginBottom:24,color:"var(--ink)"}}>Gerando seu plano...</div>
+      <div style={{maxWidth:340,margin:"0 auto",display:"flex",flexDirection:"column",gap:8}}>
+        {steps.map((s,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:10,opacity:i<=step?1:0.2,transition:"opacity 0.5s"}}>
+            <div style={{width:6,height:6,borderRadius:"50%",background:i<step?"var(--green2)":i===step?"var(--amber2)":"var(--border)",flexShrink:0,transition:"background 0.3s"}}/>
+            <div style={{fontSize:11,color:i<=step?"var(--ink2)":"var(--ink3)",textAlign:"left"}}>{s}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── PLAN DISPLAY ─────────────────────────────────────────────────────────────
+function PlanDisplay({plan, onRegenerate, loading}){
+  const [activeSection, setActiveSection] = useState(0);
+
+  // Parse sections from markdown-like plan text
+  const sections = [];
+  const lines = plan.split("\n");
+  let current = null;
+  for(const line of lines){
+    if(line.startsWith("##")){
+      if(current) sections.push(current);
+      current = {title:line.replace(/^#+\s*/,"").trim(), content:[]};
+    } else if(current){
+      current.content.push(line);
+    }
+  }
+  if(current) sections.push(current);
+
+  const sectionIcons = {"Macros":"⚖️","Café":"☕","Almoço":"🍽","Jantar":"🌙","Pré-treino":"⚡","Pós-treino":"💪","Intra":"🏃","Géis":"🧴","Suplementação":"💊","Regras":"📌","Semana":"📅"};
+  const getIcon = (title) => {
+    for(const [k,v] of Object.entries(sectionIcons)){
+      if(title.toLowerCase().includes(k.toLowerCase())) return v;
+    }
+    return "🌿";
+  };
+
+  if(sections.length===0){
+    // Fallback: show raw text nicely
+    return(
+      <div className="card fadeup" style={{padding:24}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
+          <div className="serif" style={{fontSize:20}}>Seu Plano Nutricional</div>
+          <button className="btn btn-outline" disabled={loading} onClick={onRegenerate}>{loading?"Gerando...":"↺ Regenerar"}</button>
+        </div>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,lineHeight:1.9,color:"var(--ink2)",whiteSpace:"pre-wrap"}}>{plan}</div>
+      </div>
+    );
+  }
+
+  return(
+    <div className="fadeup">
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20,flexWrap:"wrap",gap:10}}>
+        <div className="serif" style={{fontSize:22,color:"var(--ink)"}}>Seu Plano Nutricional</div>
+        <button className="btn btn-outline" disabled={loading} onClick={onRegenerate}>{loading?"Gerando...":"↺ Atualizar"}</button>
+      </div>
+
+      {/* SECTION TABS */}
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:20}}>
+        {sections.map((s,i)=>(
+          <button key={i} onClick={()=>setActiveSection(i)} style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${activeSection===i?"var(--green)":"var(--border)"}`,background:activeSection===i?"var(--green)":"white",color:activeSection===i?"white":"var(--ink2)",fontFamily:"'DM Mono',monospace",fontSize:10,cursor:"pointer",transition:"all 0.15s",display:"flex",alignItems:"center",gap:5}}>
+            <span>{getIcon(s.title)}</span><span>{s.title}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ACTIVE SECTION */}
+      <div className="card" style={{padding:24}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+          <span style={{fontSize:24}}>{getIcon(sections[activeSection].title)}</span>
+          <div className="serif" style={{fontSize:20,color:"var(--ink)"}}>{sections[activeSection].title}</div>
+        </div>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,lineHeight:1.9,color:"var(--ink2)",whiteSpace:"pre-wrap"}}>
+          {sections[activeSection].content.join("\n")}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── GEL GUIDE ────────────────────────────────────────────────────────────────
+function GelGuide({apiKey, answers}){
+  const [guide, setGuide] = useState(LS.get("nutri_gel_guide",""));
+  const [loading, setLoading] = useState(false);
+
+  const generate = async () => {
+    if(!apiKey) return;
+    setLoading(true);
+    setGuide("");
+    try{
+      const treinos = answers.tipos_treino?.join(", ")||"corrida geral";
+      const expGel = answers.gel_experiencia?.[0]||"explorando";
+      const text = await askClaude(apiKey,[{role:"user",content:`Você é uma nutricionista esportiva especializada em maratonistas. Crie um guia completo de géis e nutrição intra-treino para esta atleta.
+
+PERFIL:
+- Ana Clara, 36 anos, 59 kg, 170 cm, 17,5% gordura
+- Meta: Sub-4h Maratona de Berlim (27/set/2025)
+- Volume: ~40 km/semana
+- Tipos de treino: ${treinos}
+- Experiência com géis: ${expGel}
+- Intolerâncias: ${answers.restricoes?.join(", ")||"nenhuma"}
+
+Crie um guia detalhado com estas seções:
+
+## Quando e quanto usar géis
+Regras claras por tipo de treino (corrida leve, ritmo, tiro, long run) com timing exato.
+
+## Composição ideal por tipo de treino
+Para cada tipo de treino, indique:
+- Carboidratos (g): quantidade e tipo (maltodextrina, frutose, ratio ideal)
+- Sódio (mg): faixa ideal
+- Cafeína (mg): sim/não, quando, quantidade
+- Nitratos: quando vale a pena
+- Outros: aminoácidos, eletrólitos adicionais
+
+## Marcas recomendadas por situação
+Para cada situação de treino, liste 3-4 géis disponíveis no Brasil com:
+- Nome do produto e marca
+- Composição resumida (carbo g / sódio mg / cafeína mg)
+- Por que se encaixa nesta situação
+- Preço médio aproximado
+Marcas a considerar: GU Energy, Maurten, PowerBar, Carb Up, NeoForce, Body Action, IntegralMédica, SIS, Namedsport, Hammer Nutrition
+
+## Protocolo Maratona de Berlim
+Plano detalhado de géis para os 42,195 km:
+- Pré-largada
+- Km a km: quando tomar cada gel com tipo sugerido
+- Hidratação (água vs isotônico nos postos)
+- Estratégia de cafeína (quando ativar)
+- Gestão de sódio para o calor
+
+## Treinando o intestino
+Protocolo progressivo para adaptar o TGI aos géis antes de setembro.
+
+## Sinais de alerta
+O que evitar e como identificar problemas GI durante a corrida.
+
+Responda em português, seja específica com números e marcas reais disponíveis no Brasil.`}],2000);
+      setGuide(text);
+      LS.set("nutri_gel_guide",text);
+    }catch(e){setGuide("Erro: "+e.message);}
+    setLoading(false);
+  };
+
+  return(
+    <div className="fadeup">
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20,flexWrap:"wrap",gap:10}}>
+        <div>
+          <div className="serif" style={{fontSize:22,color:"var(--ink)"}}>Guia de Géis</div>
+          <div style={{fontSize:11,color:"var(--ink3)",marginTop:2}}>Composição ideal e marcas por tipo de treino</div>
+        </div>
+        <button className="btn btn-primary" disabled={loading||!apiKey} onClick={generate}>{loading?"Gerando...":guide?"↺ Atualizar":"Gerar guia"}</button>
+      </div>
+
+      {loading&&<LoadingPlan/>}
+
+      {!loading&&!guide&&(
+        <div className="card" style={{padding:40,textAlign:"center"}}>
+          <div style={{fontSize:36,marginBottom:12}}>🧴</div>
+          <div className="serif" style={{fontSize:18,marginBottom:8}}>Guia personalizado de géis</div>
+          <p style={{fontSize:12,color:"var(--ink2)",lineHeight:1.7,maxWidth:340,margin:"0 auto 20px"}}>
+            A IA vai recomendar composições e marcas específicas para cada tipo de treino — corrida leve, tiro, long run — e montar seu protocolo completo para Berlim.
+          </p>
+          <button className="btn btn-primary" disabled={!apiKey} onClick={generate}>Gerar guia de géis</button>
+        </div>
+      )}
+
+      {!loading&&guide&&(
+        <div className="card" style={{padding:24}}>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,lineHeight:1.9,color:"var(--ink2)",whiteSpace:"pre-wrap"}}>{guide}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── PRETREINO GUIDE ──────────────────────────────────────────────────────────
+function PreTreinoGuide({apiKey, answers}){
+  const [guide, setGuide] = useState(LS.get("nutri_pre_guide",""));
+  const [loading, setLoading] = useState(false);
+  const [selectedType, setSelectedType] = useState("corrida-manha");
+
+  const TYPES = [
+    {id:"corrida-manha",label:"Corrida · manhã",icon:"🌅"},
+    {id:"corrida-almoco",label:"Corrida · meio-dia",icon:"☀️"},
+    {id:"corrida-noite",label:"Corrida · noite",icon:"🌙"},
+    {id:"musculacao-manha",label:"Musculação · manhã",icon:"🏋️"},
+    {id:"musculacao-tarde",label:"Musculação · tarde/noite",icon:"💪"},
+    {id:"longrun",label:"Long Run · domingo",icon:"🏃"},
+    {id:"tiro",label:"Treino de tiro",icon:"⚡"},
+  ];
+
+  const generate = async () => {
+    if(!apiKey) return;
+    setLoading(true);
+    setGuide("");
+    try{
+      const pretreino = answers.pretreino_atual?.join(", ")||"variado";
+      const restricoes = answers.restricoes?.join(", ")||"nenhuma";
+      const text = await askClaude(apiKey,[{role:"user",content:`Você é uma nutricionista esportiva especializada em maratonistas. Crie um guia completo de pré-treino, intra-treino e pós-treino para esta atleta.
+
+PERFIL:
+- Ana Clara, 36 anos, 59 kg, 170 cm, 17,5% gordura, 26,4 kg músculo
+- Meta: Sub-4h Maratona de Berlim (27/set/2025), pace alvo 5:41/km
+- Volume: ~40 km/semana
+- Pré-treinos que usa atualmente: ${pretreino}
+- Restrições: ${restricoes}
+- Dificuldades: ${answers.dificuldades?.join(", ")||"gerais"}
+
+Para CADA uma das situações abaixo, forneça um protocolo completo:
+
+## Corrida Leve · Manhã (6h–7h)
+## Corrida Leve · Meio-dia (11h–13h)
+## Corrida Leve · Noite (18h–21h)
+## Musculação · Manhã (6h–8h)
+## Musculação · Tarde/Noite (17h–20h)
+## Treino de Tiro · Manhã
+## Long Run · Domingo (>18 km)
+
+Para cada situação, especifique:
+
+**PRÉ-TREINO** (com timing exato antes do treino):
+- Opção 1 — suplemento (Maismu / Dux): qual produto, dose, quando tomar, por que
+- Opção 2 — alimentação rápida: o que comer, quantidade exata, timing
+- Cafeína: sim/não, dose, timing
+- O que EVITAR nesta situação
+
+**INTRA-TREINO** (se aplicável):
+- A partir de quanto tempo/km
+- O que tomar, quanto, frequência
+- Hidratação: ml/hora
+
+**PÓS-TREINO** (janela de recuperação):
+- Nos primeiros 30–40 min: o que comer/beber, quantidades exatas
+- Refeição completa: 1–2h depois, composição ideal com quantidades
+- Suplementos pós: o que e quando
+
+Use quantidades exatas (g, ml, mg). Seja específica com produtos Maismu e Dux disponíveis no Brasil. Responda em português.`}],2500);
+      setGuide(text);
+      LS.set("nutri_pre_guide",text);
+    }catch(e){setGuide("Erro: "+e.message);}
+    setLoading(false);
+  };
+
+  // Extract section for selected type
+  const getSection = () => {
+    if(!guide) return "";
+    const typeMap = {
+      "corrida-manha":"Corrida Leve · Manhã",
+      "corrida-almoco":"Corrida Leve · Meio-dia",
+      "corrida-noite":"Corrida Leve · Noite",
+      "musculacao-manha":"Musculação · Manhã",
+      "musculacao-tarde":"Musculação · Tarde",
+      "longrun":"Long Run",
+      "tiro":"Treino de Tiro",
+    };
+    const keyword = typeMap[selectedType];
+    const lines = guide.split("\n");
+    let capture = false, result = [];
+    for(const line of lines){
+      if(line.startsWith("##")&&line.includes(keyword)){capture=true;result=[];continue;}
+      if(capture&&line.startsWith("##")&&!line.includes(keyword)){break;}
+      if(capture) result.push(line);
+    }
+    return result.length>0?result.join("\n"):guide;
+  };
+
+  return(
+    <div className="fadeup">
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20,flexWrap:"wrap",gap:10}}>
+        <div>
+          <div className="serif" style={{fontSize:22,color:"var(--ink)"}}>Pré · Intra · Pós Treino</div>
+          <div style={{fontSize:11,color:"var(--ink3)",marginTop:2}}>Protocolo por tipo e horário de treino</div>
+        </div>
+        <button className="btn btn-primary" disabled={loading||!apiKey} onClick={generate}>{loading?"Gerando...":guide?"↺ Atualizar":"Gerar protocolo"}</button>
+      </div>
+
+      {loading&&<LoadingPlan/>}
+
+      {!loading&&!guide&&(
+        <div className="card" style={{padding:40,textAlign:"center"}}>
+          <div style={{fontSize:36,marginBottom:12}}>⚡</div>
+          <div className="serif" style={{fontSize:18,marginBottom:8}}>Protocolo personalizado</div>
+          <p style={{fontSize:12,color:"var(--ink2)",lineHeight:1.7,maxWidth:360,margin:"0 auto 20px"}}>
+            Pré, intra e pós-treino detalhados para cada situação — com opções de suplemento (Maismu/Dux) e alimentação natural, quantidades exatas e timing.
+          </p>
+          <button className="btn btn-primary" disabled={!apiKey} onClick={generate}>Gerar protocolo</button>
+        </div>
+      )}
+
+      {!loading&&guide&&(
+        <div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:18}}>
+            {TYPES.map(t=>(
+              <button key={t.id} onClick={()=>setSelectedType(t.id)} style={{padding:"7px 13px",borderRadius:20,border:`1px solid ${selectedType===t.id?"var(--green)":"var(--border)"}`,background:selectedType===t.id?"var(--green)":"white",color:selectedType===t.id?"white":"var(--ink2)",fontFamily:"'DM Mono',monospace",fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",gap:5,transition:"all 0.15s"}}>
+                <span>{t.icon}</span><span>{t.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="card fadeup" style={{padding:24}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,lineHeight:1.9,color:"var(--ink2)",whiteSpace:"pre-wrap"}}>{getSection()}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+function App(){
+  const [apiKey, setApiKey] = useState(()=>LS.get("nutri_apikey",""));
+  const [answers, setAnswers] = useState(()=>LS.get("nutri_answers",{}));
+  const [qIndex, setQIndex] = useState(0);
+  const [phase, setPhase] = useState(()=>{
+    const hasAnswers = Object.keys(LS.get("nutri_answers",{})).length >= QUESTIONS.length;
+    const hasPlan = LS.get("nutri_plan","");
+    if(hasAnswers && hasPlan) return "plan";
+    if(hasAnswers) return "generating";
+    return LS.get("nutri_apikey","") ? "questionnaire" : "apikey";
+  });
+  const [plan, setPlan] = useState(()=>LS.get("nutri_plan",""));
+  const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState("plano");
+
+  const TABS = [
+    {id:"plano",label:"Plano Diário",icon:"🥗"},
+    {id:"pretreino",label:"Pré · Intra · Pós",icon:"⚡"},
+    {id:"geis",label:"Géis",icon:"🧴"},
+    {id:"perfil",label:"Meu Perfil",icon:"👤"},
+  ];
+
+  const saveApiKey = (key) => {
+    setApiKey(key);
+    LS.set("nutri_apikey",key);
+    setPhase("questionnaire");
+  };
+
+  const answerQuestion = (id, value) => {
+    const updated = {...answers,[id]:value};
+    setAnswers(updated);
+    LS.set("nutri_answers",updated);
+  };
+
+  const nextQuestion = () => {
+    if(qIndex < QUESTIONS.length-1){
+      setQIndex(i=>i+1);
+    } else {
+      setPhase("generating");
+      generatePlan({...answers});
+    }
+  };
+
+  const prevQuestion = () => {
+    if(qIndex > 0) setQIndex(i=>i-1);
+  };
+
+  const generatePlan = async (ans) => {
+    setLoading(true);
+    setPlan("");
+    try{
+      const a = ans||answers;
+      const text = await askClaude(apiKey,[{role:"user",content:`Você é uma nutricionista esportiva especializada em maratonistas de elite amadora. Crie um plano nutricional COMPLETO e altamente personalizado.
+
+DADOS CORPORAIS (bioimpedância):
+- Peso: 59,1 kg | Altura: 170 cm | Idade: 36 anos
+- % Gordura: 17,5% (excelente para maratonista) | Massa muscular: 26,4 kg
+- Água corporal: 34,7 kg | Massa gorda: 10,3 kg | MLG: 48,8 kg
+- IMC: ~20,4 | Taxa metabólica basal estimada: ~1.420 kcal
+
+META: Sub-4h Maratona de Berlim (27/set/2025), pace alvo 5:41/km
+VOLUME: ~40 km/semana | Musculação 2x/semana
+HISTÓRICO: Tendinopatia glútea e iliopsoas direito
+SUPLEMENTOS EM USO: Ômega-3, Magnésio Quelato, CoQ10, Complexo B, Whey, Probiótico
+
+RESPOSTAS DO QUESTIONÁRIO:
+- Horários de treino: ${a.horario_treino?.join(", ")||"variado"}
+- Tipos de treino: ${a.tipos_treino?.join(", ")||"variado"}
+- Pré-treino atual: ${a.pretreino_atual?.join(", ")||"variado"}
+- Intra-treino atual: ${a.intratreino_atual?.join(", ")||"variado"}
+- Experiência com géis: ${a.gel_experiencia?.[0]||"explorando"}
+- Refeições por dia: ${a.refeicoes_dia?.[0]||"4-5"}
+- Fontes de proteína: ${a.proteina_fontes?.join(", ")||"variadas"}
+- Carboidratos preferidos: ${a.carb_fontes?.join(", ")||"variados"}
+- Restrições: ${a.restricoes?.join(", ")||"nenhuma"}
+- Dificuldades: ${a.dificuldades?.join(", ")||"gerais"}
+- Sono/recuperação: ${a.sono_recuperacao?.[0]||"regular"}
+
+Crie o plano com estas seções:
+
+## Macros e Calorias
+Totais diários com breakdown por macronutriente, calorias por refeição estimadas, ajuste por dia de treino vs descanso.
+
+## Café da Manhã
+3 opções rotativas com quantidades exatas (g/ml) para cada ingrediente. Adaptar para dias com treino cedo vs dias normais.
+
+## Almoço
+3 opções rotativas com quantidades exatas. Dicas de preparo prático.
+
+## Lanche da Tarde
+3 opções com quantidades. Estratégia para dias com treino no final do dia.
+
+## Jantar
+3 opções com quantidades exatas. Diferente para dia de treino intenso vs descanso.
+
+## Regras de Ouro
+5–7 princípios nutricionais específicos para esta atleta com base nos dados e respostas.
+
+## Semana Tipo
+Resumo de como o plano se encaixa nos 7 dias, mostrando as variações por tipo de treino.
+
+Use quantidades exatas (g, ml, colheres). Seja específica com alimentos brasileiros acessíveis. Responda em português.`}],2500);
+      setPlan(text);
+      LS.set("nutri_plan",text);
+      setPhase("plan");
+    }catch(e){
+      setPlan("Erro ao gerar plano: "+e.message);
+      setPhase("plan");
+    }
+    setLoading(false);
+  };
+
+  const resetQuestionnaire = () => {
+    setAnswers({});
+    LS.set("nutri_answers",{});
+    LS.set("nutri_plan","");
+    setPlan("");
+    setQIndex(0);
+    setPhase("questionnaire");
+  };
+
+  const currentQ = QUESTIONS[qIndex];
+  const hasAnswer = answers[currentQ?.id]?.length > 0;
+  const progress = ((qIndex+1)/QUESTIONS.length)*100;
+
+  // ── RENDER ────────────────────────────────────────────────────────────────
+  return(
+    <div style={{background:"var(--bg)",minHeight:"100vh",fontFamily:"'DM Mono',monospace",paddingBottom:70}}>
+
+      {!apiKey&&<ApiKeyModal onSave={saveApiKey}/>}
+
+      {/* HEADER */}
+      <div style={{background:"var(--green)",color:"white",padding:"20px 16px 0",position:"sticky",top:0,zIndex:100}}>
+        <div style={{maxWidth:760,margin:"0 auto"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+            <div>
+              <div style={{fontSize:9,letterSpacing:3,textTransform:"uppercase",color:"rgba(255,255,255,0.6)",marginBottom:4}}>Nutrição · Berlim 2025</div>
+              <div className="serif" style={{fontSize:"clamp(18px,4vw,24px)",color:"white",fontStyle:"italic"}}>Ana Clara</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.5)",letterSpacing:1}}>59,1 kg · 17,5% gord</div>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.5)",letterSpacing:1,marginTop:2}}>Sub-4h · set/2025</div>
+            </div>
+          </div>
+          {phase==="plan"&&(
+            <div style={{display:"flex",gap:0,overflowX:"auto",marginTop:10}}>
+              {TABS.map(t=>(
+                <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:"9px 14px",background:tab===t.id?"var(--bg)":"transparent",color:tab===t.id?"var(--green)":"rgba(255,255,255,0.7)",border:"none",borderRadius:"6px 6px 0 0",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:1,textTransform:"uppercase",cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s",display:"flex",alignItems:"center",gap:5}}>
+                  <span>{t.icon}</span><span>{t.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* CONTENT */}
+      <div style={{maxWidth:760,margin:"0 auto",padding:"24px 16px 40px"}}>
+
+        {/* QUESTIONNAIRE */}
+        {(phase==="questionnaire"||phase==="apikey")&&apiKey&&(
+          <div>
+            {/* PROGRESS */}
+            <div style={{marginBottom:28}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"var(--ink3)",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>
+                <span>Questionário inicial</span><span>{qIndex+1} / {QUESTIONS.length}</span>
+              </div>
+              <div style={{background:"var(--border)",borderRadius:4,height:3,overflow:"hidden"}}>
+                <div style={{background:"var(--green2)",width:`${progress}%`,height:"100%",transition:"width 0.4s ease"}}/>
+              </div>
+            </div>
+
+            <QuestionCard q={currentQ} answers={answers} onAnswer={answerQuestion}/>
+
+            <div style={{display:"flex",gap:10,marginTop:28}}>
+              {qIndex>0&&<button className="btn btn-outline" onClick={prevQuestion}>← Voltar</button>}
+              <button className="btn btn-primary" style={{flex:1}} disabled={!hasAnswer} onClick={nextQuestion}>
+                {qIndex<QUESTIONS.length-1?"Próxima →":"Gerar meu plano 🌿"}
+              </button>
+            </div>
+
+            <div style={{marginTop:16,fontSize:10,color:"var(--ink3)",textAlign:"center"}}>
+              Todas as respostas ficam salvas localmente
+            </div>
+          </div>
+        )}
+
+        {/* GENERATING */}
+        {phase==="generating"&&<LoadingPlan/>}
+
+        {/* PLAN */}
+        {phase==="plan"&&(
+          <div>
+            {tab==="plano"&&(
+              loading ? <LoadingPlan/> :
+              <PlanDisplay plan={plan} loading={loading} onRegenerate={()=>generatePlan()}/>
+            )}
+            {tab==="pretreino"&&<PreTreinoGuide apiKey={apiKey} answers={answers}/>}
+            {tab==="geis"&&<GelGuide apiKey={apiKey} answers={answers}/>}
+            {tab==="perfil"&&(
+              <div className="fadeup">
+                <div className="serif" style={{fontSize:22,marginBottom:20}}>Meu Perfil</div>
+
+                {/* BIO DATA */}
+                <div className="card" style={{padding:20,marginBottom:16}}>
+                  <div className="label" style={{marginBottom:12,color:"var(--green)"}}>Composição Corporal</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:12}}>
+                    {[{l:"Peso",v:"59,1 kg"},{l:"% Gordura",v:"17,5%"},{l:"Músculo",v:"26,4 kg"},{l:"Água",v:"34,7 kg"},{l:"MLG",v:"48,8 kg"},{l:"IMC",v:"20,4"}].map(m=>(
+                      <div key={m.l} style={{background:"var(--bg2)",borderRadius:7,padding:"10px 12px"}}>
+                        <div className="label" style={{marginBottom:3}}>{m.l}</div>
+                        <div className="serif" style={{fontSize:18,color:"var(--ink)"}}>{m.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ANSWERS SUMMARY */}
+                <div className="card" style={{padding:20,marginBottom:16}}>
+                  <div className="label" style={{marginBottom:12,color:"var(--green)"}}>Suas respostas</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                    {QUESTIONS.map(q=>(
+                      <div key={q.id}>
+                        <div style={{fontSize:10,color:"var(--ink3)",marginBottom:4}}>{q.q}</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                          {(answers[q.id]||[]).map(a=>(
+                            <span key={a} className="chip" style={{background:"var(--green3)",color:"var(--green)",fontSize:10}}>{a}</span>
+                          ))}
+                          {(!answers[q.id]||answers[q.id].length===0)&&<span style={{fontSize:11,color:"var(--ink3)",fontStyle:"italic"}}>Não respondido</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button className="btn btn-outline" style={{width:"100%"}} onClick={resetQuestionnaire}>
+                  ↺ Refazer questionário
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* MOBILE BOTTOM NAV */}
+      {phase==="plan"&&(
+        <div style={{position:"fixed",bottom:0,left:0,right:0,background:"var(--green)",borderTop:"1px solid rgba(255,255,255,0.1)",display:"flex",zIndex:200}}>
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:"10px 4px 12px",background:"transparent",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,color:tab===t.id?"white":"rgba(255,255,255,0.45)",transition:"color 0.15s"}}>
+              <span style={{fontSize:16}}>{t.icon}</span>
+              <span style={{fontFamily:"'DM Mono',monospace",fontSize:7,letterSpacing:0.5,textTransform:"uppercase"}}>{t.label.split("·")[0].trim()}</span>
+              {tab===t.id&&<div style={{width:4,height:4,background:"white",borderRadius:"50%"}}/>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>
